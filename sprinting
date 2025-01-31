@@ -1,67 +1,59 @@
-local players = game:GetService("Players")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
 
+-- Set initial speed and enabled state
+getgenv().Speed = 50  -- Your desired speed
+getgenv().Enabled = false -- Start disabled
+
+-- Bypass (only needs to be done once)
 local function bypassWalkSpeed()
-    if getgenv().executed then
-        print("Walkspeed Already Bypassed - Applying Settings Changes")
-        if not getgenv().Enabled then
-            return
+    if getgenv().bypassed then return end -- Prevent multiple bypasses
+    getgenv().bypassed = true
+
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldIndex = mt.__index
+    mt.__index = newcclosure(function(self, k)
+        if k == "WalkSpeed" then
+            return 16 -- Return default speed to trick checks
         end
-    else
-        getgenv().executed = true
-        print("Walkspeed Bypassed")
-
-        local mt = getrawmetatable(game)
-        setreadonly(mt, false)
-
-        local oldindex = mt.__index
-        mt.__index = newcclosure(function(self, b)
-            if b == 'WalkSpeed' then
-                return 16  -- Or a higher default value if needed
-            end
-            return oldindex(self, b)
-        end)
-    end
+        return oldIndex(self, k)
+    end)
 end
 
 bypassWalkSpeed()
 
-players.LocalPlayer.CharacterAdded:Connect(function(char)
-    bypassWalkSpeed()
-    if getgenv().Enabled then -- Apply speed only if enabled
-        char:WaitForChild("Humanoid").WalkSpeed = getgenv().Speed or 16 -- Default to 16 if getgenv().Speed is nil
-    end
-end)
-
+-- Function to update walk speed
 local function updateWalkSpeed()
-    local char = players.LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then
-        if getgenv().Enabled then
-            char.Humanoid.WalkSpeed = getgenv().Speed or 16 -- Default to 16 if getgenv().Speed is nil
-        else
-            char.Humanoid.WalkSpeed = 16 -- Set back to default when disabled
-        end
+    if Humanoid and Humanoid.WalkSpeed ~= getgenv().Speed and getgenv().Enabled then
+        Humanoid.WalkSpeed = getgenv().Speed
+    elseif Humanoid and not getgenv().Enabled and Humanoid.WalkSpeed ~= 16 then -- Reset to default
+        Humanoid.WalkSpeed = 16
     end
 end
 
--- Initial setup
-getgenv().Enabled = false  -- Start disabled
-getgenv().Speed = 50 -- Set your desired speed
-
 -- Keybind
-local contextActionService = game:GetService("ContextActionService")
-
+local ContextActionService = game:GetService("ContextActionService")
 local function toggleSpeed(actionName, state, inputObject)
     if actionName == "ToggleWalkSpeed" and state == Enum.UserInputState.Begin then
         getgenv().Enabled = not getgenv().Enabled
         print("WalkSpeed " .. (getgenv().Enabled and "Enabled" or "Disabled"))
-        updateWalkSpeed() -- Update walk speed immediately
+        updateWalkSpeed() -- Update immediately
     end
 end
+ContextActionService:BindAction("ToggleWalkSpeed", toggleSpeed, false, Enum.KeyCode.T)
 
-contextActionService:BindAction("ToggleWalkSpeed", toggleSpeed, false, Enum.KeyCode.T)
+-- Character added connection (for respawns)
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    Humanoid = char:WaitForChild("Humanoid")
+    updateWalkSpeed() -- Update speed after respawn
+end)
 
--- Run the loop only when enabled
-while task.wait() do -- Use task.wait() for better performance
+-- Main loop (only runs when enabled)
+while task.wait() do
   if getgenv().Enabled then
     updateWalkSpeed()
   end
