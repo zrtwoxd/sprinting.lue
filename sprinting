@@ -3,9 +3,10 @@ local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 
--- Set initial speed and enabled state
+-- Configuration (adjust these)
 getgenv().Speed = 50  -- Your desired speed
 getgenv().Enabled = false -- Start disabled
+getgenv().LoopWalkSpeed = false -- Start loop disabled
 
 -- Bypass (only needs to be done once)
 local function bypassWalkSpeed()
@@ -34,16 +35,25 @@ local function updateWalkSpeed()
     end
 end
 
--- Keybind
+-- Keybinds
 local ContextActionService = game:GetService("ContextActionService")
+
 local function toggleSpeed(actionName, state, inputObject)
-    if actionName == "ToggleWalkSpeed" and state == Enum.UserInputState.Begin then
+    if state == Enum.UserInputState.Begin then
+      if actionName == "ToggleWalkSpeed" then
         getgenv().Enabled = not getgenv().Enabled
         print("WalkSpeed " .. (getgenv().Enabled and "Enabled" or "Disabled"))
         updateWalkSpeed() -- Update immediately
+      elseif actionName == "ToggleLoopWalkSpeed" then
+        getgenv().LoopWalkSpeed = not getgenv().LoopWalkSpeed
+        print("LoopWalkSpeed " .. (getgenv().LoopWalkSpeed and "Enabled" or "Disabled"))
+      end
     end
 end
+
 ContextActionService:BindAction("ToggleWalkSpeed", toggleSpeed, false, Enum.KeyCode.T)
+ContextActionService:BindAction("ToggleLoopWalkSpeed", toggleSpeed, false, Enum.KeyCode.L) -- 'L' key for loop toggle
+
 
 -- Character added connection (for respawns)
 LocalPlayer.CharacterAdded:Connect(function(char)
@@ -52,9 +62,9 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     updateWalkSpeed() -- Update speed after respawn
 end)
 
--- Main loop (only runs when enabled)
+-- Main loop (only runs when enabled AND loop is enabled)
 while task.wait() do
-  if getgenv().Enabled then
+  if getgenv().Enabled and getgenv().LoopWalkSpeed then
     updateWalkSpeed()
   end
 end
